@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import {
   Accelerometer,
   Gyroscope,
+  Speech
 } from 'expo';
 import {
   AppRegistry,
@@ -14,14 +15,43 @@ import {
 } from 'react-native';
 
 export default class AccelerometerSensor extends React.Component {
-  state = {
-    accelerometerData: {},
-    gyroscopeData: {},
-    dataRunName: ''
+
+  constructor(props) {
+    super(props);
+    //this.state = {showText: true};
+    this.state = {
+      accelerometerData: {},
+      gyroscopeData: {},
+      dataRunName: '',
+      recordButtonText: false
+    }
+
+  }
+
+//    // Toggle the state every second
+//    setInterval(() => {
+//      this.setState(previousState => {
+//        return { showText: !previousState.showText };
+//      });
+//    }, 1000);
+
+//  state = {
+//    accelerometerData: {},
+//    gyroscopeData: {},
+//    dataRunName: '',
+//    recordStatus: false
+//  }
+
+  _recordButtonText() {
+    if(this.state.recordStatus==true) {
+      return 'Stop';
+    } else {
+      return 'Record';
+    }
   }
 
   componentDidMount() {
-    this._toggle();
+    //this._toggle();
   }
 
   componentWillUnmount() {
@@ -30,10 +60,13 @@ export default class AccelerometerSensor extends React.Component {
   }
 
   _toggle = () => {
+    this._speak();
     if (this._accelerometerSubscription) {
       this._accelerometerUnsubscribe();
+      this.state.recordStatus = true;
     } else {
       this._accelerometerSubscribe();
+      this.state.recordStatus = false;
     }
     if (this._gyroscopeSubscription) {
       this._gyroscopeUnsubscribe();
@@ -53,6 +86,7 @@ export default class AccelerometerSensor extends React.Component {
   _timeIndex = 0;
 
   _accelerometerSubscribe = () => {
+    // ms
     Accelerometer.setUpdateInterval(33);
 
     this._accelerometerSubscription = Accelerometer.addListener((result) => {
@@ -99,7 +133,6 @@ export default class AccelerometerSensor extends React.Component {
   }
 
   _postToServer = () => {
-    //this._serverResponse = fetch('http://google.com').toString();
     fetch('http://posttestserver.com/post.php?dir=alexi', {
       method: 'POST',
       headers: {
@@ -120,7 +153,7 @@ export default class AccelerometerSensor extends React.Component {
     })
   }
 
-  _serverResponse = 'Hello Server';
+  _serverResponse = '';
 
 
     //let { x, y, z } = this.state.accelerometerData;
@@ -141,6 +174,29 @@ export default class AccelerometerSensor extends React.Component {
 //          <TouchableOpacity onPress={this._fast} style={styles.button}>
 //            <Text>Fast</Text>
 //          </TouchableOpacity>
+
+  _speak = () => {
+    const start = () => {
+      this.setState({ speechInProgress: true });
+    };
+    const complete = () => {
+      this.state.speechInProgress && this.setState({ speechInProgress: false });
+    };
+
+    Speech.speak('hello world', {
+      language: 'en',
+      pitch: 1,
+      rate: 0.75,
+      onStart: start,
+      onDone: complete,
+      onStopped: complete,
+      onError: complete,
+    });
+  };
+
+  _stopSpeaking = () => {
+    Speech.stop();
+  };
 
   render() {
 
@@ -169,7 +225,7 @@ export default class AccelerometerSensor extends React.Component {
 
         <View style={styles.buttonContainer}>
           <TouchableOpacity onPress={this._toggle} style={styles.button}>
-            <Text>Toggle</Text>
+            <Text>{this._recordButtonText()}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={this._clearCurrentTrialData} style={styles.button}>
             <Text>Reset</Text>

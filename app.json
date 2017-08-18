@@ -1,8 +1,8 @@
 {
   "expo": {
     "name": "mobile_motion_data_collection",
-    "description": "react-native expo data collection",
-    "slug": "mobile_motion_data_collection",
+    "description": "react native expo data collection",
+    "slug": "mobile-motion-data-collection",
     "privacy": "public",
     "sdkVersion": "19.0.0",
     "version": "1.0.0",
