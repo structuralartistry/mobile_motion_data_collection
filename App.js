@@ -20,34 +20,16 @@ export default class AccelerometerSensor extends React.Component {
     super(props);
     //this.state = {showText: true};
     this.state = {
-      accelerometerData: {},
-      gyroscopeData: {},
+      currentTrialData: {
+        accelerometer: [],
+        gyroscope: [],
+      },
+      currentAccelerometerData: {},
+      currentGyroscopeData: {},
       dataRunName: '',
-      recordButtonText: false
+      recordButtonText: 'Record'
     }
 
-  }
-
-//    // Toggle the state every second
-//    setInterval(() => {
-//      this.setState(previousState => {
-//        return { showText: !previousState.showText };
-//      });
-//    }, 1000);
-
-//  state = {
-//    accelerometerData: {},
-//    gyroscopeData: {},
-//    dataRunName: '',
-//    recordStatus: false
-//  }
-
-  _recordButtonText() {
-    if(this.state.recordStatus==true) {
-      return 'Stop';
-    } else {
-      return 'Record';
-    }
   }
 
   componentDidMount() {
@@ -63,10 +45,10 @@ export default class AccelerometerSensor extends React.Component {
     this._speak();
     if (this._accelerometerSubscription) {
       this._accelerometerUnsubscribe();
-      this.state.recordStatus = true;
+      this.state.recordButtonText = 'Record';
     } else {
       this._accelerometerSubscribe();
-      this.state.recordStatus = false;
+      this.state.recordButtonText = 'Stop';
     }
     if (this._gyroscopeSubscription) {
       this._gyroscopeUnsubscribe();
@@ -83,20 +65,18 @@ export default class AccelerometerSensor extends React.Component {
     Accelerometer.setUpdateInterval(16);
   }
 
-  _timeIndex = 0;
-
   _accelerometerSubscribe = () => {
     // ms
     Accelerometer.setUpdateInterval(33);
 
     this._accelerometerSubscription = Accelerometer.addListener((result) => {
-      this.setState({accelerometerData: result});
+      this.setState({currentAccelerometerData: result});
 
       // add current data to the historical array
-      this._currentTrialData.accelerometer.push([this._timeIndex, result.x, result.y, result.z]);
+      this.state.currentTrialData.accelerometer.push([this.state.timeIndex, result.x, result.y, result.z]);
 
       // update the time index - letting the accelerometer routine handle
-      this._timeIndex += 1;
+      this.state.timeIndex += 1;
     });
   }
 
@@ -104,10 +84,10 @@ export default class AccelerometerSensor extends React.Component {
     Gyroscope.setUpdateInterval(33);
 
     this._gyroscopeSubscription = Gyroscope.addListener((result) => {
-      this.setState({gyroscopeData: result});
+      this.setState({currentGyroscopeData: result});
 
       // add current data to the historical array
-      this._currentTrialData.gyroscope.push([this._timeIndex, result.x, result.y, result.z]);
+      this.state.currentTrialData.gyroscope.push([this.state.timeIndex, result.x, result.y, result.z]);
     });
   }
 
@@ -121,15 +101,10 @@ export default class AccelerometerSensor extends React.Component {
     this._gyroscopeSubscription = null;
   }
 
-  _currentTrialData = {
-    accelerometer: [],
-    gyroscope: [],
-  }
-
   _clearCurrentTrialData = () => {
-    this._currentTrialData.accelerometer = [];
-    this._currentTrialData.gyroscope = [];
-    this._timeIndex = 0;
+    this.state.currentTrialData.accelerometer = [];
+    this.state.currentTrialData.gyroscope = [];
+    this.state.timeIndex = 0;
   }
 
   _postToServer = () => {
@@ -141,7 +116,7 @@ export default class AccelerometerSensor extends React.Component {
       },
       body: JSON.stringify({
         dataRunName: this.state.dataRunName,
-        trialData: this._currentTrialData,
+        trialData: this.state.currentTrialData,
       })
     })
     .then((response) => response.json())
@@ -155,25 +130,6 @@ export default class AccelerometerSensor extends React.Component {
 
   _serverResponse = '';
 
-
-    //let { x, y, z } = this.state.accelerometerData;
-    //<Text>x: {round(x)} y: {round(y)} z: {round(z)}</Text>
-//        <Text>Accelerometer:</Text>
-//        <Text>X: {this.state.accelerometerData.x}</Text>
-//        <Text>Y: {this.state.accelerometerData.y}</Text>
-//        <Text>Z: {this.state.accelerometerData.z}</Text>
-//        <Text>N: {this._currentTrialData.accelerometer.length}</Text>
-//        <Text>Gyroscope:</Text>
-//        <Text>X: {this.state.gyroscopeData.x}</Text>
-//        <Text>Y: {this.state.gyroscopeData.y}</Text>
-//        <Text>Z: {this.state.gyroscopeData.z}</Text>
-//        <Text>N: {this._currentTrialData.gyroscope.length}</Text>
-//          <TouchableOpacity onPress={this._slow} style={[styles.button, styles.middleButton]}>
-//            <Text>Slow</Text>
-//          </TouchableOpacity>
-//          <TouchableOpacity onPress={this._fast} style={styles.button}>
-//            <Text>Fast</Text>
-//          </TouchableOpacity>
 
   _speak = () => {
     const start = () => {
@@ -203,17 +159,17 @@ export default class AccelerometerSensor extends React.Component {
     return (
       <View style={styles.sensor}>
         <Text style={styles.sectionHeaderText}>Accelerometer:</Text>
-        <Text>X: {this.state.accelerometerData.x}</Text>
-        <Text>Y: {this.state.accelerometerData.y}</Text>
-        <Text>Z: {this.state.accelerometerData.z}</Text>
-        <Text>N: {this._currentTrialData.accelerometer.length}</Text>
+        <Text>X: {this.state.currentAccelerometerData.x}</Text>
+        <Text>Y: {this.state.currentAccelerometerData.y}</Text>
+        <Text>Z: {this.state.currentAccelerometerData.z}</Text>
+        <Text>N: {this.state.currentTrialData.accelerometer.length}</Text>
         <Text style={styles.sectionHeaderText}>Gyroscope:</Text>
-        <Text>X: {this.state.gyroscopeData.x}</Text>
-        <Text>Y: {this.state.gyroscopeData.y}</Text>
-        <Text>Z: {this.state.gyroscopeData.z}</Text>
-        <Text>N: {this._currentTrialData.gyroscope.length}</Text>
+        <Text>X: {this.state.currentGyroscopeData.x}</Text>
+        <Text>Y: {this.state.currentGyroscopeData.y}</Text>
+        <Text>Z: {this.state.currentGyroscopeData.z}</Text>
+        <Text>N: {this.state.currentTrialData.gyroscope.length}</Text>
         <Text></Text>
-        <Text>TI: {this._timeIndex}</Text>
+        <Text>TI: {this.state.timeIndex}</Text>
         <Text></Text>
         <Text>Server Response: {this._serverResponse}</Text>
         <TextInput
@@ -225,7 +181,7 @@ export default class AccelerometerSensor extends React.Component {
 
         <View style={styles.buttonContainer}>
           <TouchableOpacity onPress={this._toggle} style={styles.button}>
-            <Text>{this._recordButtonText()}</Text>
+            <Text>{this.state.recordButtonText}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={this._clearCurrentTrialData} style={styles.button}>
             <Text>Reset</Text>
@@ -238,6 +194,10 @@ export default class AccelerometerSensor extends React.Component {
       </View>
     );
   }
+}
+
+function lastElement(arr) {
+  arr[arr.length-1];
 }
 
 function round(n) {
