@@ -24,8 +24,6 @@ export default class AccelerometerSensor extends React.Component {
         accelerometer: [],
         gyroscope: [],
       },
-      currentAccelerometerData: {},
-      currentGyroscopeData: {},
       dataRunName: '',
       recordButtonText: 'Record'
     }
@@ -70,13 +68,12 @@ export default class AccelerometerSensor extends React.Component {
     Accelerometer.setUpdateInterval(33);
 
     this._accelerometerSubscription = Accelerometer.addListener((result) => {
-      this.setState({currentAccelerometerData: result});
-
       // add current data to the historical array
       this.state.currentTrialData.accelerometer.push([this.state.timeIndex, result.x, result.y, result.z]);
 
       // update the time index - letting the accelerometer routine handle
-      this.state.timeIndex += 1;
+      var newTimeIndex = ++this.state.timeIndex || 1;
+      this.setState({timeIndex: newTimeIndex});
     });
   }
 
@@ -84,8 +81,6 @@ export default class AccelerometerSensor extends React.Component {
     Gyroscope.setUpdateInterval(33);
 
     this._gyroscopeSubscription = Gyroscope.addListener((result) => {
-      this.setState({currentGyroscopeData: result});
-
       // add current data to the historical array
       this.state.currentTrialData.gyroscope.push([this.state.timeIndex, result.x, result.y, result.z]);
     });
@@ -102,9 +97,8 @@ export default class AccelerometerSensor extends React.Component {
   }
 
   _clearCurrentTrialData = () => {
-    this.state.currentTrialData.accelerometer = [];
-    this.state.currentTrialData.gyroscope = [];
-    this.state.timeIndex = 0;
+    this.setState({currentTrialData: {accelerometer: [], gyroscope: []} });
+    this.setState({timeIndex: 0});
   }
 
   _postToServer = () => {
@@ -159,24 +153,50 @@ export default class AccelerometerSensor extends React.Component {
     return (
       <View style={styles.sensor}>
         <Text style={styles.sectionHeaderText}>Accelerometer:</Text>
-        <Text>X: {this.state.currentAccelerometerData.x}</Text>
-        <Text>Y: {this.state.currentAccelerometerData.y}</Text>
-        <Text>Z: {this.state.currentAccelerometerData.z}</Text>
+        <Text>X: {lastElement(this.state.currentTrialData.accelerometer)[1]}</Text>
+        <Text>Y: {lastElement(this.state.currentTrialData.accelerometer)[2]}</Text>
+        <Text>Z: {lastElement(this.state.currentTrialData.accelerometer)[3]}</Text>
         <Text>N: {this.state.currentTrialData.accelerometer.length}</Text>
         <Text style={styles.sectionHeaderText}>Gyroscope:</Text>
-        <Text>X: {this.state.currentGyroscopeData.x}</Text>
-        <Text>Y: {this.state.currentGyroscopeData.y}</Text>
-        <Text>Z: {this.state.currentGyroscopeData.z}</Text>
+        <Text>X: {lastElement(this.state.currentTrialData.gyroscope)[1]}</Text>
+        <Text>Y: {lastElement(this.state.currentTrialData.gyroscope)[2]}</Text>
+        <Text>Z: {lastElement(this.state.currentTrialData.gyroscope)[3]}</Text>
         <Text>N: {this.state.currentTrialData.gyroscope.length}</Text>
         <Text></Text>
-        <Text>TI: {this.state.timeIndex}</Text>
+        <Text>Current Time Index: {this.state.timeIndex}</Text>
         <Text></Text>
         <Text>Server Response: {this._serverResponse}</Text>
+
         <TextInput
           style={{height: 40, borderColor: 'gray', borderWidth: 1}}
           onChangeText={(dataRunName) => this.setState({dataRunName})}
           onSubmitEditing={Keyboard.dismiss}
           value={this.state.dataRunName}
+        />
+        <TextInput
+          style={{height: 40, width: 100, borderColor: 'gray', borderWidth: 1}}
+          onChangeText={(pollingRateMs) => this.setState({pollingRateMs})}
+          onSubmitEditing={Keyboard.dismiss}
+          value={this.state.pollingRateMs}
+        />
+        <TextInput
+          style={{height: 40, width: 100, borderColor: 'gray', borderWidth: 1}}
+          onChangeText={(numberOfSamples) => this.setState({numberOfSamples})}
+          onSubmitEditing={Keyboard.dismiss}
+          value={this.state.numberOfSamples}
+        />
+        <Text>Approx Run Time(s): {(this.state.numberOfSamples * this.state.pollingRateMs)/1000}</Text>
+        <TextInput
+          style={{height: 40, width: 100, borderColor: 'gray', borderWidth: 1}}
+          onChangeText={(startRecordDelaySeconds) => this.setState({startRecordDelaySeconds})}
+          onSubmitEditing={Keyboard.dismiss}
+          value={this.state.startRecordDelaySeconds}
+        />
+        <TextInput
+          style={{height: 40, borderColor: 'gray', borderWidth: 1}}
+          onChangeText={(postUrl) => this.setState({postUrl})}
+          onSubmitEditing={Keyboard.dismiss}
+          value={this.state.postUrl}
         />
 
         <View style={styles.buttonContainer}>
@@ -197,7 +217,11 @@ export default class AccelerometerSensor extends React.Component {
 }
 
 function lastElement(arr) {
-  arr[arr.length-1];
+  if(typeof(arr) != undefined && arr.length >= 1) {
+    return arr[arr.length-1];
+  } else {
+    return ['---','---','---','---'];
+  }
 }
 
 function round(n) {
