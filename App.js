@@ -11,6 +11,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View
 } from 'react-native';
 
@@ -24,11 +25,21 @@ export default class AccelerometerSensor extends React.Component {
         accelerometer: [],
         gyroscope: [],
       },
-      dataRunName: '',
+      currentAccelerometerReading: ['---','---','---','---'],
+      currentGyroscopeReading: ['---','---','---','---'],
+      dataRunName: 'alexi data run #',
+      pollingRateMs: 33,
+      numberOfSamples: 1500,
+      startRecordDelaySeconds: 15,
+      postUrl: 'http://posttestserver.com/post.php?dir=alexi',
+      recordStatus: false,
       recordButtonText: 'Record'
     }
 
   }
+
+  trialDataAccelerometer = [];
+  trialDataGyroscope = [];
 
   componentDidMount() {
     //this._toggle();
@@ -43,10 +54,10 @@ export default class AccelerometerSensor extends React.Component {
     this._speak();
     if (this._accelerometerSubscription) {
       this._accelerometerUnsubscribe();
-      this.state.recordButtonText = 'Record';
+      this.state.recordStatus = false;
     } else {
       this._accelerometerSubscribe();
-      this.state.recordButtonText = 'Stop';
+      this.state.recordStatus = true;
     }
     if (this._gyroscopeSubscription) {
       this._gyroscopeUnsubscribe();
@@ -55,17 +66,8 @@ export default class AccelerometerSensor extends React.Component {
     }
   }
 
-  _slow = () => {
-    Accelerometer.setUpdateInterval(1000);
-  }
-
-  _fast = () => {
-    Accelerometer.setUpdateInterval(16);
-  }
-
   _accelerometerSubscribe = () => {
-    // ms
-    Accelerometer.setUpdateInterval(33);
+    Accelerometer.setUpdateInterval(this.state.pollingRateMs);
 
     this._accelerometerSubscription = Accelerometer.addListener((result) => {
       // add current data to the historical array
@@ -78,7 +80,7 @@ export default class AccelerometerSensor extends React.Component {
   }
 
   _gyroscopeSubscribe = () => {
-    Gyroscope.setUpdateInterval(33);
+    Gyroscope.setUpdateInterval(this.state.pollingRateMs);
 
     this._gyroscopeSubscription = Gyroscope.addListener((result) => {
       // add current data to the historical array
@@ -102,7 +104,7 @@ export default class AccelerometerSensor extends React.Component {
   }
 
   _postToServer = () => {
-    fetch('http://posttestserver.com/post.php?dir=alexi', {
+    fetch(this.state.postUrl, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
@@ -151,6 +153,7 @@ export default class AccelerometerSensor extends React.Component {
   render() {
 
     return (
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.sensor}>
         <Text style={styles.sectionHeaderText}>Accelerometer:</Text>
         <Text>X: {lastElement(this.state.currentTrialData.accelerometer)[1]}</Text>
@@ -174,23 +177,26 @@ export default class AccelerometerSensor extends React.Component {
           value={this.state.dataRunName}
         />
         <TextInput
-          style={{height: 40, width: 100, borderColor: 'gray', borderWidth: 1}}
+          style={{height: 40, borderColor: 'gray', borderWidth: 1}}
           onChangeText={(pollingRateMs) => this.setState({pollingRateMs})}
           onSubmitEditing={Keyboard.dismiss}
-          value={this.state.pollingRateMs}
+          keyboardType='numeric'
+          value={this.state.pollingRateMs.toString()}
         />
         <TextInput
-          style={{height: 40, width: 100, borderColor: 'gray', borderWidth: 1}}
+          style={{height: 40, borderColor: 'gray', borderWidth: 1}}
           onChangeText={(numberOfSamples) => this.setState({numberOfSamples})}
           onSubmitEditing={Keyboard.dismiss}
-          value={this.state.numberOfSamples}
+          keyboardType='numeric'
+          value={this.state.numberOfSamples.toString()}
         />
         <Text>Approx Run Time(s): {(this.state.numberOfSamples * this.state.pollingRateMs)/1000}</Text>
         <TextInput
-          style={{height: 40, width: 100, borderColor: 'gray', borderWidth: 1}}
+          style={{height: 40, borderColor: 'gray', borderWidth: 1}}
           onChangeText={(startRecordDelaySeconds) => this.setState({startRecordDelaySeconds})}
           onSubmitEditing={Keyboard.dismiss}
-          value={this.state.startRecordDelaySeconds}
+          keyboardType='numeric'
+          value={this.state.startRecordDelaySeconds.toString()}
         />
         <TextInput
           style={{height: 40, borderColor: 'gray', borderWidth: 1}}
@@ -201,7 +207,7 @@ export default class AccelerometerSensor extends React.Component {
 
         <View style={styles.buttonContainer}>
           <TouchableOpacity onPress={this._toggle} style={styles.button}>
-            <Text>{this.state.recordButtonText}</Text>
+            <Text>{this.state.recordStatus ? 'Stop' : 'Record'}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={this._clearCurrentTrialData} style={styles.button}>
             <Text>Reset</Text>
@@ -212,6 +218,7 @@ export default class AccelerometerSensor extends React.Component {
         </View>
 
       </View>
+      </TouchableWithoutFeedback>
     );
   }
 }
