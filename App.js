@@ -14,6 +14,7 @@ import {
   TouchableWithoutFeedback,
   View
 } from 'react-native';
+import { TimerExample }
 
 export default class AccelerometerSensor extends React.Component {
 
@@ -51,13 +52,14 @@ export default class AccelerometerSensor extends React.Component {
   }
 
   _toggle = () => {
-    this._speak();
     if (this._accelerometerSubscription) {
       this._accelerometerUnsubscribe();
       this.state.recordStatus = false;
+      this._speak('Recording complete. You may stop now.');
     } else {
       this._accelerometerSubscribe();
       this.state.recordStatus = true;
+      this._speak('Beginning to record data');
     }
     if (this._gyroscopeSubscription) {
       this._gyroscopeUnsubscribe();
@@ -127,7 +129,7 @@ export default class AccelerometerSensor extends React.Component {
   _serverResponse = '';
 
 
-  _speak = () => {
+  _speak = (sentence) => {
     const start = () => {
       this.setState({ speechInProgress: true });
     };
@@ -135,10 +137,10 @@ export default class AccelerometerSensor extends React.Component {
       this.state.speechInProgress && this.setState({ speechInProgress: false });
     };
 
-    Speech.speak('hello world', {
+    Speech.speak(sentence, {
       language: 'en',
-      pitch: 1,
-      rate: 0.75,
+      pitch: 0.8,
+      rate: 0.5,
       onStart: start,
       onDone: complete,
       onStopped: complete,
@@ -155,6 +157,7 @@ export default class AccelerometerSensor extends React.Component {
     return (
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.sensor}>
+        <TimerExample start={Date.now()} />
         <Text style={styles.sectionHeaderText}>Accelerometer:</Text>
         <Text>X: {lastElement(this.state.currentTrialData.accelerometer)[1]}</Text>
         <Text>Y: {lastElement(this.state.currentTrialData.accelerometer)[2]}</Text>
@@ -173,20 +176,17 @@ export default class AccelerometerSensor extends React.Component {
         <TextInput
           style={{height: 40, borderColor: 'gray', borderWidth: 1}}
           onChangeText={(dataRunName) => this.setState({dataRunName})}
-          onSubmitEditing={Keyboard.dismiss}
           value={this.state.dataRunName}
         />
         <TextInput
           style={{height: 40, borderColor: 'gray', borderWidth: 1}}
           onChangeText={(pollingRateMs) => this.setState({pollingRateMs})}
-          onSubmitEditing={Keyboard.dismiss}
           keyboardType='numeric'
           value={this.state.pollingRateMs.toString()}
         />
         <TextInput
           style={{height: 40, borderColor: 'gray', borderWidth: 1}}
           onChangeText={(numberOfSamples) => this.setState({numberOfSamples})}
-          onSubmitEditing={Keyboard.dismiss}
           keyboardType='numeric'
           value={this.state.numberOfSamples.toString()}
         />
@@ -194,14 +194,12 @@ export default class AccelerometerSensor extends React.Component {
         <TextInput
           style={{height: 40, borderColor: 'gray', borderWidth: 1}}
           onChangeText={(startRecordDelaySeconds) => this.setState({startRecordDelaySeconds})}
-          onSubmitEditing={Keyboard.dismiss}
           keyboardType='numeric'
           value={this.state.startRecordDelaySeconds.toString()}
         />
         <TextInput
           style={{height: 40, borderColor: 'gray', borderWidth: 1}}
           onChangeText={(postUrl) => this.setState({postUrl})}
-          onSubmitEditing={Keyboard.dismiss}
           value={this.state.postUrl}
         />
 
@@ -269,3 +267,55 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
 });
+
+class TimerExample extends React.Component {
+
+    // This is called before our render function. The object that is
+    // returned is assigned to this.state, so we can use it later.
+//    getInitialState() {
+//      return { elapsed: 0 };
+//    }
+
+//    constructor(props) {
+//      super(props);
+//
+//      this.state = {
+//        elapsed: 0
+//      }
+//    }
+//
+//    // componentDidMount is called by react when the component
+//    // has been rendered on the page. We can set the interval here:
+//    componentDidMount() {
+//      this.timer = setInterval(this.tick, 50);
+//    }
+//
+//    // This method is called immediately before the component is removed
+//    // from the page and destroyed. We can clear the interval here:
+//    componentWillUnmount() {
+//        clearInterval(this.timer);
+//    }
+//
+//    // This function is called every 50 ms. It updates the
+//    // elapsed counter. Calling setState causes the component to be re-rendered
+//    tick() {
+//      this.setState({elapsed: new Date() - this.props.start});
+//    }
+//
+//    render() {
+//      // Calculate elapsed to tenth of a second:
+//      var elapsed = Math.round(this.state.elapsed / 100);
+//
+//      // This will give a number with one digit after the decimal dot (xx.x):
+//      var seconds = (elapsed / 10).toFixed(1);
+//
+//      // Although we return an entire <p> element, react will smartly update
+//      // only the changed parts, which contain the seconds variable.
+//
+//      return <p>This example was started <b>{seconds} seconds</b> ago.</p>;
+//    }
+
+    render() {
+      return <p>This example was started <b>50 million seconds</b> ago.</p>;
+    }
+}
