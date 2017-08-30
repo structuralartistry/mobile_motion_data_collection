@@ -14,8 +14,6 @@ import {
   TouchableWithoutFeedback,
   View
 } from 'react-native';
-import { Timer } from './components/Timer';
-
 
 export default class AccelerometerSensor extends React.Component {
 
@@ -35,7 +33,9 @@ export default class AccelerometerSensor extends React.Component {
       startRecordDelaySeconds: 15,
       postUrl: 'http://posttestserver.com/post.php?dir=alexi',
       recordStatus: false,
-      recordButtonText: 'Record'
+      recordButtonText: 'Record',
+      startTime: 0,
+      elapsedMs: 0
     }
 
   }
@@ -79,7 +79,16 @@ export default class AccelerometerSensor extends React.Component {
       // update the time index - letting the accelerometer routine handle
       var newTimeIndex = ++this.state.timeIndex || 1;
       this.setState({timeIndex: newTimeIndex});
+
+      // initialize timer
+      this.setState({startTime: Date.now()});
+      this.timer = setInterval(this.tick, 1000);
     });
+  }
+
+  tick = () => {
+    const timeDelta = Date.now() - this.state.startTime;
+    this.setState({elapsed: timeDelta});
   }
 
   _gyroscopeSubscribe = () => {
@@ -104,6 +113,8 @@ export default class AccelerometerSensor extends React.Component {
   _clearCurrentTrialData = () => {
     this.setState({currentTrialData: {accelerometer: [], gyroscope: []} });
     this.setState({timeIndex: 0});
+    this.setState({elapsedMs: 0});
+    clearInterval(this.timer);
   }
 
   _postToServer = () => {
@@ -154,11 +165,10 @@ export default class AccelerometerSensor extends React.Component {
   };
 
   render() {
-
     return (
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.sensor}>
-        <Timer start={Date.now()} />
+        <Text>Elapsed: {this.state.elapsedMs}</Text>
         <Text style={styles.sectionHeaderText}>Accelerometer:</Text>
         <Text>X: {lastElement(this.state.currentTrialData.accelerometer)[1]}</Text>
         <Text>Y: {lastElement(this.state.currentTrialData.accelerometer)[2]}</Text>
