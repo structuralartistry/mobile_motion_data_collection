@@ -35,7 +35,7 @@ export default class AccelerometerSensor extends React.Component {
       recordStatus: false,
       recordButtonText: 'Record',
       startTime: 0,
-      elapsedMs: 0
+      elapsedTimeMs: 0
     }
 
   }
@@ -71,6 +71,7 @@ export default class AccelerometerSensor extends React.Component {
 
   _accelerometerSubscribe = () => {
     Accelerometer.setUpdateInterval(this.state.pollingRateMs);
+    this.setState({startTime: Date.now()});
 
     this._accelerometerSubscription = Accelerometer.addListener((result) => {
       // add current data to the historical array
@@ -80,15 +81,8 @@ export default class AccelerometerSensor extends React.Component {
       var newTimeIndex = ++this.state.timeIndex || 1;
       this.setState({timeIndex: newTimeIndex});
 
-      // initialize timer
-      this.setState({startTime: Date.now()});
-      this.timer = setInterval(this.tick, 1000);
+      this.setState({elapsedTimeMs: Date.now()-this.state.startTime});
     });
-  }
-
-  tick = () => {
-    const timeDelta = Date.now() - this.state.startTime;
-    this.setState({elapsed: timeDelta});
   }
 
   _gyroscopeSubscribe = () => {
@@ -113,8 +107,8 @@ export default class AccelerometerSensor extends React.Component {
   _clearCurrentTrialData = () => {
     this.setState({currentTrialData: {accelerometer: [], gyroscope: []} });
     this.setState({timeIndex: 0});
-    this.setState({elapsedMs: 0});
-    clearInterval(this.timer);
+    this.setState({startTime: 0});
+    this.setState({elapsedTimeMs: 0});
   }
 
   _postToServer = () => {
@@ -168,7 +162,8 @@ export default class AccelerometerSensor extends React.Component {
     return (
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.sensor}>
-        <Text>Elapsed: {this.state.elapsedMs}</Text>
+        <Text>Start Time: {this.state.startTime}</Text>
+        <Text>Elapsed: {this.state.elapsedTimeMs}</Text>
         <Text style={styles.sectionHeaderText}>Accelerometer:</Text>
         <Text>X: {lastElement(this.state.currentTrialData.accelerometer)[1]}</Text>
         <Text>Y: {lastElement(this.state.currentTrialData.accelerometer)[2]}</Text>
