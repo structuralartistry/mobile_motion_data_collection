@@ -32,16 +32,14 @@ export default class AccelerometerSensor extends React.Component {
       numberOfSamples: 1500,
       startRecordDelaySeconds: 15,
       postUrl: 'http://posttestserver.com/post.php?dir=alexi',
-      recordStatus: false,
+      trialInProgressStatus: false,
+      dataCaptureStatus: false,
       recordButtonText: 'Record',
       startTime: 0,
       elapsedTimeMs: 0
     }
 
   }
-
-  trialDataAccelerometer = [];
-  trialDataGyroscope = [];
 
   componentDidMount() {
     //this._toggle();
@@ -55,12 +53,13 @@ export default class AccelerometerSensor extends React.Component {
   _toggle = () => {
     if (this._accelerometerSubscription) {
       this._accelerometerUnsubscribe();
-      this.state.recordStatus = false;
+      this.setState({trialInProgressStatus: false});
+      this.setState({dataCaptureStatus: false});
       this._speak('Recording complete. You may stop now.');
     } else {
       this._accelerometerSubscribe();
-      this.state.recordStatus = true;
-      this._speak('Beginning to record data');
+      this.setState({trialInProgressStatus: true});
+      this._speak('Beginning trial. Begin walking.');
     }
     if (this._gyroscopeSubscription) {
       this._gyroscopeUnsubscribe();
@@ -73,13 +72,32 @@ export default class AccelerometerSensor extends React.Component {
     Accelerometer.setUpdateInterval(this.state.pollingRateMs);
     this.setState({startTime: Date.now()});
 
-    this._accelerometerSubscription = Accelerometer.addListener((result) => {
-      // add current data to the historical array
-      this.state.currentTrialData.accelerometer.push([this.state.timeIndex, result.x, result.y, result.z]);
+    // set capture start time if delay
+    this.setState({startRecordAt: Date.now()+(this.state.startRecordDelaySeconds*1000)});
 
-      // update the time index - letting the accelerometer routine handle
-      var newTimeIndex = ++this.state.timeIndex || 1;
-      this.setState({timeIndex: newTimeIndex});
+    this._accelerometerSubscription = Accelerometer.addListener((result) => {
+
+      // don't push data to the history array unless countdown over
+      if(this.state.dataCaptureStatus == true || this.state.startRecordAt <= Date.now()) {
+
+        if(this.state.dataCaptureStatus==false) {
+          this.setState({dataCaptureStatus: true});
+          this._speak('Beginning to capture data.');
+        }
+
+        // add current data to the historical array
+        this.state.currentTrialData.accelerometer.push([this.state.timeIndex, result.x, result.y, result.z]);
+
+        // update the time index - letting the accelerometer routine handle
+        var newTimeIndex = ++this.state.timeIndex || 1;
+        this.setState({timeIndex: newTimeIndex});
+
+        // end if desired sample size reached
+        if(this.state.currentTrialData.accelerometer.length >= this.state.numberOfSamples) {
+          this._speak('Number of samples reached.');
+          this._toggle();
+        }
+      }
 
       this.setState({elapsedTimeMs: Date.now()-this.state.startTime});
     });
@@ -90,7 +108,9 @@ export default class AccelerometerSensor extends React.Component {
 
     this._gyroscopeSubscription = Gyroscope.addListener((result) => {
       // add current data to the historical array
-      this.state.currentTrialData.gyroscope.push([this.state.timeIndex, result.x, result.y, result.z]);
+      if(this.state.dataCaptureStatus == true) {
+        this.state.currentTrialData.gyroscope.push([this.state.timeIndex, result.x, result.y, result.z]);
+      }
     });
   }
 
@@ -211,7 +231,7 @@ export default class AccelerometerSensor extends React.Component {
 
         <View style={styles.buttonContainer}>
           <TouchableOpacity onPress={this._toggle} style={styles.button}>
-            <Text>{this.state.recordStatus ? 'Stop' : 'Record'}</Text>
+            <Text>{this.state.trialInProgressStatus ? 'Stop' : 'Record'}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={this._clearCurrentTrialData} style={styles.button}>
             <Text>Reset</Text>
