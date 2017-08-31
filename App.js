@@ -27,7 +27,7 @@ export default class AccelerometerSensor extends React.Component {
       },
       currentAccelerometerReading: ['---','---','---','---'],
       currentGyroscopeReading: ['---','---','---','---'],
-      dataRunName: 'alexi data run #',
+      dataRunName: 'mobile acc/gyro data run ' + Date.now().toString(),
       pollingRateMs: 33,
       numberOfSamples: 1500,
       startRecordDelaySeconds: 15,
@@ -35,8 +35,10 @@ export default class AccelerometerSensor extends React.Component {
       trialInProgressStatus: false,
       dataCaptureStatus: false,
       recordButtonText: 'Record',
-      startTime: 0,
-      elapsedTimeMs: 0
+      startTrialTime: 0,
+      startCaptureTime: 0,
+
+      //elapsedTimeMs: 0
     }
 
   }
@@ -70,37 +72,48 @@ export default class AccelerometerSensor extends React.Component {
 
   _accelerometerSubscribe = () => {
     Accelerometer.setUpdateInterval(this.state.pollingRateMs);
-    this.setState({startTime: Date.now()});
 
-    // set capture start time if delay
-    this.setState({startRecordAt: Date.now()+(this.state.startRecordDelaySeconds*1000)});
+    this.manageTrialStart();
 
     this._accelerometerSubscription = Accelerometer.addListener((result) => {
 
-      // don't push data to the history array unless countdown over
-      if(this.state.dataCaptureStatus == true || this.state.startRecordAt <= Date.now()) {
-
-        if(this.state.dataCaptureStatus==false) {
-          this.setState({dataCaptureStatus: true});
-          this._speak('Beginning to capture data.');
-        }
-
+      if(this.manageTrialStatus() == true) {
         // add current data to the historical array
-        this.state.currentTrialData.accelerometer.push([this.state.timeIndex, result.x, result.y, result.z]);
+        this.state.currentTrialData.accelerometer.push([Date.now()-this.state.startCaptureTime, result.x, result.y, result.z]);
 
         // update the time index - letting the accelerometer routine handle
         var newTimeIndex = ++this.state.timeIndex || 1;
         this.setState({timeIndex: newTimeIndex});
-
-        // end if desired sample size reached
-        if(this.state.currentTrialData.accelerometer.length >= this.state.numberOfSamples) {
-          this._speak('Number of samples reached.');
-          this._toggle();
-        }
       }
 
-      this.setState({elapsedTimeMs: Date.now()-this.state.startTime});
+      //this.setState({elapsedTimeMs: Date.now()-this.state.startTrialTime});
     });
+  }
+
+  manageTrialStart = () => {
+    this.setState({startTrialTime: Date.now()});
+    // set capture start time if delay
+    this.setState({startRecordAt: Date.now()+(this.state.startRecordDelaySeconds*1000)});
+  }
+
+  manageTrialStatus = () => {
+    // don't push data to the history array unless countdown over
+    if(this.state.dataCaptureStatus == true || this.state.startRecordAt <= Date.now()) {
+
+      if(this.state.dataCaptureStatus==false) {
+        this.setState({dataCaptureStatus: true});
+        this.setState({startCaptureTime: Date.now()});
+        this._speak('Beginning to capture data.');
+      }
+
+      // end if desired sample size reached
+      if(this.state.currentTrialData.accelerometer.length >= this.state.numberOfSamples) {
+        this._speak('Number of samples reached.');
+        this._toggle();
+      }
+    }
+
+    return this.state.dataCaptureStatus;
   }
 
   _gyroscopeSubscribe = () => {
@@ -109,7 +122,7 @@ export default class AccelerometerSensor extends React.Component {
     this._gyroscopeSubscription = Gyroscope.addListener((result) => {
       // add current data to the historical array
       if(this.state.dataCaptureStatus == true) {
-        this.state.currentTrialData.gyroscope.push([this.state.timeIndex, result.x, result.y, result.z]);
+        this.state.currentTrialData.gyroscope.push([Date.now, result.x, result.y, result.z]);
       }
     });
   }
@@ -127,8 +140,8 @@ export default class AccelerometerSensor extends React.Component {
   _clearCurrentTrialData = () => {
     this.setState({currentTrialData: {accelerometer: [], gyroscope: []} });
     this.setState({timeIndex: 0});
-    this.setState({startTime: 0});
-    this.setState({elapsedTimeMs: 0});
+    this.setState({startTrialTime: 0});
+    //this.setState({elapsedTimeMs: 0});
   }
 
   _postToServer = () => {
@@ -182,8 +195,7 @@ export default class AccelerometerSensor extends React.Component {
     return (
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.sensor}>
-        <Text>Start Time: {this.state.startTime}</Text>
-        <Text>Elapsed: {this.state.elapsedTimeMs}</Text>
+        <Text>Trial Elapsed: {Date.now()-this.state.startTrialTime}</Text>
         <Text style={styles.sectionHeaderText}>Accelerometer:</Text>
         <Text>X: {lastElement(this.state.currentTrialData.accelerometer)[1]}</Text>
         <Text>Y: {lastElement(this.state.currentTrialData.accelerometer)[2]}</Text>
