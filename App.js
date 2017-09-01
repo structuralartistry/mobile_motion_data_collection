@@ -191,11 +191,27 @@ export default class AccelerometerSensor extends React.Component {
     Speech.stop();
   };
 
+  friendlyStatusText = () => {
+    if(this.state.trialInProgressStatus) {
+      return 'Trial in Progress...';
+    }
+
+    if(this.state.dataCaptureStatus) {
+      return 'Capturing Data...';
+    }
+
+    return 'Not Running...';
+  };
+
   render() {
+
     return (
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.sensor}>
-        <Text>Trial Elapsed: {Date.now()-this.state.startTrialTime}</Text>
+        <Text>{this.friendlyStatusText()}</Text>
+        <Text style={styles.counter}>
+          <Text style={this.state.dataCaptureStatus ? styles.red : styles.green}>Elapsed: {Date.now()-this.state.startTrialTime}</Text>
+        </Text>
         <Text style={styles.sectionHeaderText}>Accelerometer:</Text>
         <Text>X: {lastElement(this.state.currentTrialData.accelerometer)[1]}</Text>
         <Text>Y: {lastElement(this.state.currentTrialData.accelerometer)[2]}</Text>
@@ -276,6 +292,15 @@ function round(n) {
 }
 
 const styles = StyleSheet.create({
+  counter: {
+    fontSize: 20,
+  },
+  red: {
+    color: 'red'
+  },
+  green: {
+    color: 'green'
+  },
   container: {
     flex: 1
   },
