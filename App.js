@@ -2,7 +2,9 @@ import React, { Component } from 'react';
 import {
   Accelerometer,
   Gyroscope,
-  Speech
+  Magnetometer,
+  Speech,
+  KeepAwake
 } from 'expo';
 import {
   AppRegistry,
@@ -22,12 +24,11 @@ export default class AccelerometerSensor extends React.Component {
     //this.state = {showText: true};
     this.state = {
       currentTrialData: {
-        accelerometer: [],
-        gyroscope: [],
+        accelerometer: [Date.now,0,0,0],
+        gyroscope: [Date.now,0,0,0],
+        magnetometer: [Date.now,0,0,0]
       },
-      currentAccelerometerReading: ['---','---','---','---'],
-      currentGyroscopeReading: ['---','---','---','---'],
-      dataRunName: 'mobile acc/gyro data run ' + Date.now().toString(),
+      dataRunName: 'mobile motion data run ' + Date.now().toString(),
       pollingRateMs: 33,
       numberOfSamples: 1500,
       startRecordDelaySeconds: 15,
@@ -37,8 +38,7 @@ export default class AccelerometerSensor extends React.Component {
       recordButtonText: 'Record',
       startTrialTime: 0,
       startCaptureTime: 0,
-
-      //elapsedTimeMs: 0
+      currentTime: Date.now
     }
 
   }
@@ -50,6 +50,7 @@ export default class AccelerometerSensor extends React.Component {
   componentWillUnmount() {
     this._accelerometerUnsubscribe();
     this._gyroscopeUnsubscribe();
+    this._magnetometerUnsubscribe();
   }
 
   _toggle = () => {
@@ -68,6 +69,11 @@ export default class AccelerometerSensor extends React.Component {
     } else {
       this._gyroscopeSubscribe();
     }
+    if (this._magnetometerSubscription) {
+      this._magnetometerUnsubscribe();
+    } else {
+      this._magnetometerSubscribe();
+    }
   }
 
   _accelerometerSubscribe = () => {
@@ -85,10 +91,45 @@ export default class AccelerometerSensor extends React.Component {
         var newTimeIndex = ++this.state.timeIndex || 1;
         this.setState({timeIndex: newTimeIndex});
       }
-
-      //this.setState({elapsedTimeMs: Date.now()-this.state.startTrialTime});
     });
   }
+
+  _gyroscopeSubscribe = () => {
+    Gyroscope.setUpdateInterval(this.state.pollingRateMs);
+
+    this._gyroscopeSubscription = Gyroscope.addListener((result) => {
+      // add current data to the historical array
+      if(this.state.dataCaptureStatus == true) {
+        this.state.currentTrialData.gyroscope.push([Date.now, result.x, result.y, result.z]);
+      }
+    });
+  }
+  _magnetometerSubscribe = () => {
+    Magnetometer.setUpdateInterval(this.state.pollingRateMs);
+
+    this._magnetometerSubscription = Magnetometer.addListener((result) => {
+      // add current data to the historical array
+      if(this.state.dataCaptureStatus == true) {
+        this.state.currentTrialData.magnetometer.push([Date.now, result.x, result.y, result.z]);
+      }
+    });
+  }
+
+  _accelerometerUnsubscribe = () => {
+    this._accelerometerSubscription && this._accelerometerSubscription.remove();
+    this._accelerometerSubscription = null;
+  }
+
+  _gyroscopeUnsubscribe = () => {
+    this._gyroscopeSubscription && this._gyroscopeSubscription.remove();
+    this._gyroscopeSubscription = null;
+  }
+
+  _magnetometerUnsubscribe = () => {
+    this._magnetometerSubscription && this._magnetometerSubscription.remove();
+    this._magnetometerSubscription = null;
+  }
+
 
   manageTrialStart = () => {
     this.setState({startTrialTime: Date.now()});
@@ -97,6 +138,9 @@ export default class AccelerometerSensor extends React.Component {
   }
 
   manageTrialStatus = () => {
+    // update current time to keep state updating so that pre-capture elapsed time shows via state update
+    this.setState({currentTime: Date.now()});
+
     // don't push data to the history array unless countdown over
     if(this.state.dataCaptureStatus == true || this.state.startRecordAt <= Date.now()) {
 
@@ -116,32 +160,11 @@ export default class AccelerometerSensor extends React.Component {
     return this.state.dataCaptureStatus;
   }
 
-  _gyroscopeSubscribe = () => {
-    Gyroscope.setUpdateInterval(this.state.pollingRateMs);
-
-    this._gyroscopeSubscription = Gyroscope.addListener((result) => {
-      // add current data to the historical array
-      if(this.state.dataCaptureStatus == true) {
-        this.state.currentTrialData.gyroscope.push([Date.now, result.x, result.y, result.z]);
-      }
-    });
-  }
-
-  _accelerometerUnsubscribe = () => {
-    this._accelerometerSubscription && this._accelerometerSubscription.remove();
-    this._accelerometerSubscription = null;
-  }
-
-  _gyroscopeUnsubscribe = () => {
-    this._gyroscopeSubscription && this._gyroscopeSubscription.remove();
-    this._gyroscopeSubscription = null;
-  }
-
   _clearCurrentTrialData = () => {
-    this.setState({currentTrialData: {accelerometer: [], gyroscope: []} });
+    const baseData = [Date.now,0,0,0];
+    this.setState({currentTrialData: {accelerometer: [baseData], gyroscope: [baseData], magnetometer: [baseData]} });
     this.setState({timeIndex: 0});
     this.setState({startTrialTime: 0});
-    //this.setState({elapsedTimeMs: 0});
   }
 
   _postToServer = () => {
@@ -207,68 +230,131 @@ export default class AccelerometerSensor extends React.Component {
 
     return (
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <View style={styles.sensor}>
-        <Text>{this.friendlyStatusText()}</Text>
-        <Text style={styles.counter}>
-          <Text style={this.state.dataCaptureStatus ? styles.red : styles.green}>Elapsed: {Date.now()-this.state.startTrialTime}</Text>
-        </Text>
-        <Text style={styles.sectionHeaderText}>Accelerometer:</Text>
-        <Text>X: {lastElement(this.state.currentTrialData.accelerometer)[1]}</Text>
-        <Text>Y: {lastElement(this.state.currentTrialData.accelerometer)[2]}</Text>
-        <Text>Z: {lastElement(this.state.currentTrialData.accelerometer)[3]}</Text>
-        <Text>N: {this.state.currentTrialData.accelerometer.length}</Text>
-        <Text style={styles.sectionHeaderText}>Gyroscope:</Text>
-        <Text>X: {lastElement(this.state.currentTrialData.gyroscope)[1]}</Text>
-        <Text>Y: {lastElement(this.state.currentTrialData.gyroscope)[2]}</Text>
-        <Text>Z: {lastElement(this.state.currentTrialData.gyroscope)[3]}</Text>
-        <Text>N: {this.state.currentTrialData.gyroscope.length}</Text>
-        <Text></Text>
-        <Text>Current Time Index: {this.state.timeIndex}</Text>
-        <Text></Text>
-        <Text>Server Response: {this._serverResponse}</Text>
-
-        <TextInput
-          style={{height: 40, borderColor: 'gray', borderWidth: 1}}
-          onChangeText={(dataRunName) => this.setState({dataRunName})}
-          value={this.state.dataRunName}
-        />
-        <TextInput
-          style={{height: 40, borderColor: 'gray', borderWidth: 1}}
-          onChangeText={(pollingRateMs) => this.setState({pollingRateMs})}
-          keyboardType='numeric'
-          value={this.state.pollingRateMs.toString()}
-        />
-        <TextInput
-          style={{height: 40, borderColor: 'gray', borderWidth: 1}}
-          onChangeText={(numberOfSamples) => this.setState({numberOfSamples})}
-          keyboardType='numeric'
-          value={this.state.numberOfSamples.toString()}
-        />
-        <Text>Approx Run Time(s): {(this.state.numberOfSamples * this.state.pollingRateMs)/1000}</Text>
-        <TextInput
-          style={{height: 40, borderColor: 'gray', borderWidth: 1}}
-          onChangeText={(startRecordDelaySeconds) => this.setState({startRecordDelaySeconds})}
-          keyboardType='numeric'
-          value={this.state.startRecordDelaySeconds.toString()}
-        />
-        <TextInput
-          style={{height: 40, borderColor: 'gray', borderWidth: 1}}
-          onChangeText={(postUrl) => this.setState({postUrl})}
-          value={this.state.postUrl}
-        />
-
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity onPress={this._toggle} style={styles.button}>
-            <Text>{this.state.trialInProgressStatus ? 'Stop' : 'Record'}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={this._clearCurrentTrialData} style={styles.button}>
-            <Text>Reset</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={this._postToServer} style={[styles.button]}>
-            <Text>Post</Text>
-          </TouchableOpacity>
+      <View>
+        <Text>Hello world!</Text>
+        <View style={{flex: 1, flexDirection: 'row'}}>
+          <KeepAwake />
+          <Text>{this.friendlyStatusText()}</Text>
+          <Text style={styles.counter}>
+            <Text style={this.state.dataCaptureStatus ? styles.red : styles.green}>Elapsed: {Date.now()-this.state.startTrialTime}</Text>
+          </Text>
+          <Text>Current Time Index: {this.state.timeIndex}</Text>
         </View>
+        <View style={{flex: 1, flexDirection: 'column'}}>
+          <View style={{width: 50, height: 50, backgroundColor: 'powderblue'}}>
+            <Text></Text>
+          </View>
+          <View style={{width: 50, height: 50, backgroundColor: 'powderblue'}}>
+            <Text>X</Text>
+          </View>
+          <View style={{width: 50, height: 50, backgroundColor: 'powderblue'}}>
+            <Text>Y</Text>
+          </View>
+          <View style={{width: 50, height: 50, backgroundColor: 'powderblue'}}>
+            <Text>Z</Text>
+          </View>
+          <View style={{width: 50, height: 50, backgroundColor: 'powderblue'}}>
+            <Text>N</Text>
+          </View>
+        </View>
+        <View style={{flex: 1, flexDirection: 'column'}}>
+          <View style={{width: 50, height: 50, backgroundColor: 'powderblue'}}>
+            <Text>Acc</Text>
+          </View>
+          <View style={{width: 50, height: 50, backgroundColor: 'powderblue'}}>
+            <Text>{round(lastElement(this.state.currentTrialData.accelerometer)[1])}</Text>
+          </View>
+          <View style={{width: 50, height: 50, backgroundColor: 'powderblue'}}>
+            <Text>{round(lastElement(this.state.currentTrialData.accelerometer)[2])}</Text>
+          </View>
+          <View style={{width: 50, height: 50, backgroundColor: 'powderblue'}}>
+            <Text>{round(lastElement(this.state.currentTrialData.accelerometer)[3])}</Text>
+          </View>
+          <View style={{width: 50, height: 50, backgroundColor: 'powderblue'}}>
+            <Text>{this.state.currentTrialData.accelerometer.length}</Text>
+          </View>
+        </View>
+        <View style={{flex: 1, flexDirection: 'column'}}>
+          <View style={{width: 50, height: 50, backgroundColor: 'powderblue'}}>
+            <Text>Acc</Text>
+          </View>
+          <View style={{width: 50, height: 50, backgroundColor: 'powderblue'}}>
+            <Text>{round(lastElement(this.state.currentTrialData.gyroscope)[1])}</Text>
+          </View>
+          <View style={{width: 50, height: 50, backgroundColor: 'powderblue'}}>
+            <Text>{round(lastElement(this.state.currentTrialData.gyroscope)[2])}</Text>
+          </View>
+          <View style={{width: 50, height: 50, backgroundColor: 'powderblue'}}>
+            <Text>{round(lastElement(this.state.currentTrialData.gyroscope)[3])}</Text>
+          </View>
+          <View style={{width: 50, height: 50, backgroundColor: 'powderblue'}}>
+            <Text>{this.state.currentTrialData.gyroscope.length}</Text>
+          </View>
+        </View>
+        <View style={{flex: 1, flexDirection: 'column'}}>
+          <View style={{width: 50, height: 50, backgroundColor: 'powderblue'}}>
+            <Text>Acc</Text>
+          </View>
+          <View style={{width: 50, height: 50, backgroundColor: 'powderblue'}}>
+            <Text>{round(lastElement(this.state.currentTrialData.magnetometer)[1])}</Text>
+          </View>
+          <View style={{width: 50, height: 50, backgroundColor: 'powderblue'}}>
+            <Text>{round(lastElement(this.state.currentTrialData.magnetometer)[2])}</Text>
+          </View>
+          <View style={{width: 50, height: 50, backgroundColor: 'powderblue'}}>
+            <Text>{round(lastElement(this.state.currentTrialData.magnetometer)[3])}</Text>
+          </View>
+          <View style={{width: 50, height: 50, backgroundColor: 'powderblue'}}>
+            <Text>{this.state.currentTrialData.magnetometer.length}</Text>
+          </View>
+        </View>
+        <View style={styles.sensor}>
+          <Text></Text>
+          <Text></Text>
+          <Text>Server Response: {this._serverResponse}</Text>
 
+          <TextInput
+            style={{height: 40, borderColor: 'gray', borderWidth: 1}}
+            onChangeText={(dataRunName) => this.setState({dataRunName})}
+            value={this.state.dataRunName}
+          />
+          <TextInput
+            style={{height: 40, borderColor: 'gray', borderWidth: 1}}
+            onChangeText={(pollingRateMs) => this.setState({pollingRateMs})}
+            keyboardType='numeric'
+            value={this.state.pollingRateMs.toString()}
+          />
+          <TextInput
+            style={{height: 40, borderColor: 'gray', borderWidth: 1}}
+            onChangeText={(numberOfSamples) => this.setState({numberOfSamples})}
+            keyboardType='numeric'
+            value={this.state.numberOfSamples.toString()}
+          />
+          <Text>Approx Run Time(s): {(this.state.numberOfSamples * this.state.pollingRateMs)/1000}</Text>
+          <TextInput
+            style={{height: 40, borderColor: 'gray', borderWidth: 1}}
+            onChangeText={(startRecordDelaySeconds) => this.setState({startRecordDelaySeconds})}
+            keyboardType='numeric'
+            value={this.state.startRecordDelaySeconds.toString()}
+          />
+          <TextInput
+            style={{height: 40, borderColor: 'gray', borderWidth: 1}}
+            onChangeText={(postUrl) => this.setState({postUrl})}
+            value={this.state.postUrl}
+          />
+
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity onPress={this._toggle} style={styles.button}>
+              <Text>{this.state.trialInProgressStatus ? 'Stop' : 'Record'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={this._clearCurrentTrialData} style={styles.button}>
+              <Text>Reset</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={this._postToServer} style={[styles.button]}>
+              <Text>Post</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
       </TouchableWithoutFeedback>
     );
@@ -276,11 +362,11 @@ export default class AccelerometerSensor extends React.Component {
 }
 
 function lastElement(arr) {
-  if(typeof(arr) != undefined && arr.length >= 1) {
-    return arr[arr.length-1];
-  } else {
-    return ['---','---','---','---'];
-  }
+  return arr[arr.length-1];
+//  if(typeof(arr) != undefined && arr.length >= 1) {
+//  } else {
+//    return ['---','---','---','---'];
+//  }
 }
 
 function round(n) {
